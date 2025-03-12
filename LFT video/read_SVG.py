@@ -2,25 +2,32 @@ import cv2
 import pytesseract
 import csv
 import os
+import re
 
 def extract_number_from_frame(frame):
     
     # frame preprocessing
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) # Convert to grayscale
-    # gray = cv2.threshold(gray, 120, 255, cv2.THRESH_BINARY)[1] # grayscale thresholding (if needed)
+    gray = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 15, 1)
 
     # ROI definition
     x, y, w, h = 143,171, 542, 157 #replace with bounding_box values
     roi = gray[y:y+h, x:x+w]
+    cv2.imwrite('roi_debug.png', roi)
 
     # OCR
     pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
-    custom_config = r'--psm 6'
+    custom_config = r'--oem 3 --psm 7 -c tessedit_char_whitelist=-.0123456789'
     text = pytesseract.image_to_string(roi, config=custom_config)
 
     # string post-processing
     text = text.strip()
-    return text
+    
+    match = re.match(r'-?\d{1,2}\.\d{2}', text)
+    if match:
+        return match.group(0)
+    else:
+        return ""
 
 def record_video_numbers(video_path, output_csv, sample_frequency=1.0):
 
@@ -86,6 +93,6 @@ def record_video_numbers(video_path, output_csv, sample_frequency=1.0):
 if __name__ == "__main__":
     video_file =  r"C:\Users\USER\Desktop\Uni Files\Y4\gip-ddest\LFT video\LFT_dry_SVG_test1.mp4" #Replace with current test path
     output_csv_file = "test1.csv"
-    sample_freq = 2.0  # in seconds; adjust as needed
+    sample_freq = 2  # in seconds; adjust as needed
 
     record_video_numbers(video_file, output_csv_file, sample_freq)
