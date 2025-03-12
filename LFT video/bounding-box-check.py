@@ -25,10 +25,10 @@ def select_roi(video_path):
     cv2.destroyAllWindows()
 
     # Print ROI coordinates (x, y, width, height)
-    print(f"Selected bounding box: x, y, w, h = ",roi[0],roi[1],roi[2],roi[3])
+    print(f"Selected bounding box: x, y, w, h = ",roi[0],",",roi[1],",",roi[2],",",roi[3])
     return roi
 
 
-video_file = r"C:\Users\USER\Desktop\Uni Files\Y4\gip-ddest\LFT video\LFT_dry_SVG_test1.mp4" #Replace with current test path
+video_file = r"C:\Users\USER\Desktop\Uni Files\Y4\gip-ddest\LFT video\LFT_PTFE_1_vid.mp4" #Replace with current test path
 
 bounding_box = select_roi(video_file)
