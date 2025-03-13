@@ -1,6 +1,4 @@
-DRY Tests
-
-1
+PTFE 1
 video_path = r"C:\Users\USER\Desktop\Uni Files\Y4\gip-ddest\LFT video\LFT_PTFE_1_vid.mp4"
 x, y, w, h = 124, 228, 315, 111 
 psm = 6 
@@ -8,6 +6,7 @@ sample_freq = 1.0
 output_csv_file = r"C:\Users\USER\Desktop\Uni Files\Y4\gip-ddest\LFT video\LFT_PTFE_1_vid.csv"
 
 
-2
+PTFE 2
+
 
 

@@ -34,7 +34,7 @@ def extract_number_from_frame(frame, roi_x, roi_y, roi_w, roi_h, psm_val):
     print(f"Extracted Text: '{text}'") 
 
     # Debug 
-    script_directory = os.path.dirname(os.path.abspath(__file__))
+    script_directory = r"C:\Users\USER\Desktop\Uni Files\Y4\gip-ddest\LFT video debug"
     roi_debug_gray_path = os.path.join(script_directory, "roi_debug_gray.png")
     roi_debug_path = os.path.join(script_directory, "roi_debug.png")
     roi_drawn_path = os.path.join(script_directory, "roi_drawn.png")
