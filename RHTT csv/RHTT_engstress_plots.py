@@ -24,6 +24,7 @@ alt_load_col = "Voltage ADC 1 channel 1"  # Alternative column if load_col is mi
 fig, axes = plt.subplots(1, 2, figsize=(14, 6))
 
 Ultimate_Tensile_Strength = {}
+Ductility = {}  
 
 # Loop through files and plot data
 for i in range(1, 6):
@@ -50,19 +51,7 @@ for i in range(1, 6):
         if strain_col not in df.columns or load_col not in df.columns:
             print(f"Skipping {file_path} - Required columns not found.")
             continue
-
-        # Detect NaN gaps in required columns
-        nan_mask = df[load_col].isna() | df[strain_col].isna()
-        nan_gaps = nan_mask.astype(int).groupby(nan_mask.ne(nan_mask.shift()).cumsum()).cumsum()
-
-        # Find the first index where NaN gap is more than 30
-        large_nan_gaps = np.where(nan_gaps > 30)[0]
-
-        if len(large_nan_gaps) > 0:
-            truncation_index = large_nan_gaps[0]  # First occurrence
-            print(f"Truncating {file_path} at index {truncation_index} due to large NaN gap.")
-            df = df.iloc[:truncation_index]  # Keep data up to the first NaN gap
-
+        
         # Drop NaN values
         df = df[[strain_col, load_col]].dropna()
 
@@ -80,22 +69,39 @@ for i in range(1, 6):
         df["Engineering Stress"] = (df[load_col] * 1e3 / 2) / A  # Stress in MPa (N/mm²)
 
 
-        max_stress = df["Engineering Stress"].max()
-        Ultimate_Tensile_Strength[f"Test {i}"] = max_stress  # Store result
-
         # True Strain: ε_true = ln(1 + ε_eng)
         df["True Strain"] = np.log(1 + df["Engineering Strain"])
 
         # True Stress: σ_true = σ_eng * (1 + ε_eng)
         df["True Stress"] = df["Engineering Stress"] * (1 + df["Engineering Strain"])
 
-        # Plot only if there is valid data left
+        
+        stress_threshold = 10  # Define threshold for valid stress values
+        search_start_index = 400  # Only check for drops after this index
+
+        # Identify the last index where Engineering Stress remains valid (above threshold)
+        valid_indices = df.loc[search_start_index:, "Engineering Stress"].where(df.loc[search_start_index:, "Engineering Stress"] >= stress_threshold).dropna().index
+
+        if not valid_indices.empty:
+            last_valid_index = valid_indices[-1]  # Take the last valid index before a major drop
+            print(f"Truncating {file_path} at index {last_valid_index}.")
+            df = df.loc[:last_valid_index]  # Keep data up to this index
+        else:
+            print(f"No valid truncation index found. Keeping full dataset for {file_path}.")
+        
         if not df.empty:
             axes[0].plot(df["Engineering Strain"], df["Engineering Stress"], label=f"Test {i}")  # Left plot
             axes[1].plot(df["True Strain"], df["True Stress"], label=f"Test {i}")  # Right plot
         else:
             print(f"No valid data in {file_path}. Skipping.")
 
+        
+        max_stress = df["Engineering Stress"].max()
+        Ultimate_Tensile_Strength[f"Test {i}"] = max_stress  # Store result
+
+        max_strain = df["Engineering Strain"].max() * 100  # Convert to percentage
+        Ductility[f"Test {i}"] = max_strain  # Store result
+        
     except FileNotFoundError:
         print(f"File {file_path} not found. Skipping.")
     except Exception as e:
@@ -119,6 +125,11 @@ axes[1].grid(True)
 plt.tight_layout()
 plt.show()
 
-print("\nUltimate Tensile Strength (Max Engineering Stress) for each test:")
+
+print(f"Average UTS for {test_type}: {round(sum(Ultimate_Tensile_Strength.values()) / len(Ultimate_Tensile_Strength), 2)} MPa")
 for test, stress in Ultimate_Tensile_Strength.items():
     print(f"{test}: {round(stress, 2)} MPa")
+
+print(f"\nAverage Ductility for {test_type}: {round(sum(Ductility.values()) / len(Ductility), 2)}%")
+for test, strain in Ductility.items():
+    print(f"{test}: {round(strain, 2)}%")
