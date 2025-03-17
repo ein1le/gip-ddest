@@ -5,6 +5,7 @@ import numpy as np
 # Define test type options
 test_types = ["RHTT_L_DRY", "RHTT_S_DRY", "RHTT_L_LUB", "RHTT_S_LUB"]
 
+
 # Prompt user to manually enter a test type
 while True:
     test_type = input(f"Enter the test type ({', '.join(test_types)}): ").strip()
@@ -12,22 +13,17 @@ while True:
         break
     print("Invalid test type. Please enter one of the specified options.")
 
-# Prompt user for cross-sectional area A (in mm²)
-while True:
-    try:
-        A = float(input("Enter the cross-sectional area (in mm²): "))
-        if A > 0:
-            break
-        print("Area must be a positive number.")
-    except ValueError:
-        print("Invalid input. Please enter a numeric value.")
+A = 12  # Cross-sectional area in mm² (6mm x 2mm)
 
 # Define columns for the plot
 strain_col = "Strain - RC (Extensometer 1)"  # Strain column (already in decimal form)
 load_col = "Load ADC 1 channel 1"  # Load column
+alt_load_col = "Voltage ADC 1 channel 1"  # Alternative column if load_col is missing
 
 # Initialize subplots (1 row, 2 columns)
 fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+
+Ultimate_Tensile_Strength = {}
 
 # Loop through files and plot data
 for i in range(1, 6):
@@ -40,39 +36,65 @@ for i in range(1, 6):
         # Remove leading/trailing spaces from column names
         df.columns = df.columns.str.strip()
 
-        # Ensure necessary columns exist
-        if strain_col in df.columns and load_col in df.columns:
-            # Drop NaN values
-            df = df[[strain_col, load_col]].dropna()
-
-            # Convert to numeric
-            df[strain_col] = pd.to_numeric(df[strain_col], errors="coerce")
-            df[load_col] = pd.to_numeric(df[load_col], errors="coerce")
-
-            # Drop rows where conversion failed
-            df = df.dropna()
-
-            # Engineering Strain (unchanged since it's already in decimal form)
-            df["Engineering Strain"] = df[strain_col]
-
-            # Engineering Stress (Force / Area)
-            df["Engineering Stress"] = df[load_col] / A  # Stress in MPa (N/mm²)
-
-            # True Strain: ε_true = ln(1 + ε_eng)
-            df["True Strain"] = np.log(1 + df["Engineering Strain"])
-
-            # True Stress: σ_true = σ_eng * (1 + ε_eng)
-            df["True Stress"] = df["Engineering Stress"] * (1 + df["Engineering Strain"])
-
-            # Plot only if there is valid data left
-            if not df.empty:
-                axes[0].plot(df["Engineering Strain"], df["Engineering Stress"], label=f"Test {i}")  # Left plot
-                axes[1].plot(df["True Strain"], df["True Stress"], label=f"Test {i}")  # Right plot
+        # Handle missing load column by substituting the voltage column
+        if load_col not in df.columns:
+            if alt_load_col in df.columns:
+                print(f"Using '{alt_load_col}' instead of '{load_col}' for {file_path} (converted to load).")
+                df[alt_load_col] = pd.to_numeric(df[alt_load_col], errors="coerce")  # Convert to numeric
+                df[load_col] = df[alt_load_col] * 2.5  # Convert voltage to load
             else:
-                print(f"No valid data in {file_path}. Skipping.")
+                print(f"Skipping {file_path} - Required columns not found.")
+                continue  # Skip to the next file
 
+        # Ensure necessary columns exist
+        if strain_col not in df.columns or load_col not in df.columns:
+            print(f"Skipping {file_path} - Required columns not found.")
+            continue
+
+        # Detect NaN gaps in required columns
+        nan_mask = df[load_col].isna() | df[strain_col].isna()
+        nan_gaps = nan_mask.astype(int).groupby(nan_mask.ne(nan_mask.shift()).cumsum()).cumsum()
+
+        # Find the first index where NaN gap is more than 30
+        large_nan_gaps = np.where(nan_gaps > 30)[0]
+
+        if len(large_nan_gaps) > 0:
+            truncation_index = large_nan_gaps[0]  # First occurrence
+            print(f"Truncating {file_path} at index {truncation_index} due to large NaN gap.")
+            df = df.iloc[:truncation_index]  # Keep data up to the first NaN gap
+
+        # Drop NaN values
+        df = df[[strain_col, load_col]].dropna()
+
+        # Convert to numeric
+        df[strain_col] = pd.to_numeric(df[strain_col], errors="coerce")
+        df[load_col] = pd.to_numeric(df[load_col], errors="coerce")
+
+        # Drop rows where conversion failed
+        df = df.dropna()
+
+        # Engineering Strain (unchanged since it's already in decimal form)
+        df["Engineering Strain"] = df[strain_col]
+
+        # Engineering Stress (Force / Area)
+        df["Engineering Stress"] = (df[load_col] * 1e3 / 2) / A  # Stress in MPa (N/mm²)
+
+
+        max_stress = df["Engineering Stress"].max()
+        Ultimate_Tensile_Strength[f"Test {i}"] = max_stress  # Store result
+
+        # True Strain: ε_true = ln(1 + ε_eng)
+        df["True Strain"] = np.log(1 + df["Engineering Strain"])
+
+        # True Stress: σ_true = σ_eng * (1 + ε_eng)
+        df["True Stress"] = df["Engineering Stress"] * (1 + df["Engineering Strain"])
+
+        # Plot only if there is valid data left
+        if not df.empty:
+            axes[0].plot(df["Engineering Strain"], df["Engineering Stress"], label=f"Test {i}")  # Left plot
+            axes[1].plot(df["True Strain"], df["True Stress"], label=f"Test {i}")  # Right plot
         else:
-            print(f"Columns not found in {file_path}. Available columns: {df.columns.tolist()}")
+            print(f"No valid data in {file_path}. Skipping.")
 
     except FileNotFoundError:
         print(f"File {file_path} not found. Skipping.")
@@ -87,12 +109,16 @@ axes[0].legend()
 axes[0].grid(True)
 
 # Formatting the right plot (True Stress vs. True Strain)
-axes[1].set_xlabel("True Strain")
+axes[1].set_xlabel("True Strain (mm/mm)")
 axes[1].set_ylabel("True Stress (MPa)")
 axes[1].set_title(f"True Stress-Strain Curve - {test_type}")
 axes[1].legend()
 axes[1].grid(True)
 
-# Adjust layout and show plot
+# Display the final plots
 plt.tight_layout()
 plt.show()
+
+print("\nUltimate Tensile Strength (Max Engineering Stress) for each test:")
+for test, stress in Ultimate_Tensile_Strength.items():
+    print(f"{test}: {round(stress, 2)} MPa")
