@@ -1,31 +1,60 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+plt.rcParams["font.family"] = "Times New Roman"
 
-# File path for FEA data (remains the same for all tests)
-FEA_file = "C:/Users/USER/Desktop/Uni Files/Y4/gip-ddest/RHTT csv/FEA_L_DRY.csv"
 
-# Read FEA data
-df_fea = pd.read_csv(FEA_file, encoding='latin1', header=None)
-df_fea.columns = ["Strain", "Stress"]
-print(f"Loaded FEA data from: {FEA_file}, {len(df_fea)} rows")
+while True:
+    strain_method = input("Enter the strain method | Extensometer (Ex) or Strain Gauges (SG): ").strip()
+    if strain_method in ["Ex", "SG"]:
+        break
+    print("Invalid strain method. Please enter 'Ex' for Extensometer or 'SG' for Strain Gauges.")
+
+# Modify the if clause to define both strain columns
+if strain_method == "Ex": #starts immediately 
+    strain_col_1 = "Strain - RC (Extensometer 1)"  # Primary strain column
+    strain_col_2 = "Dummy Extensometer"             # Dummy column that will be set to zero
+
+    # File path for FEA data (remains the same for all tests)
+    FEA_file = "C:/Users/USER/Desktop/Uni Files/Y4/gip-ddest/RHTT csv/FEA_L_DRY_postoffset.csv"
+
+    # Read FEA data
+    df_fea = pd.read_csv(FEA_file, encoding='latin1', header=None)
+    df_fea.columns = ["Strain", "Stress"]
+    print(f"Loaded FEA data from: {FEA_file}, {len(df_fea)} rows")
+
+
+elif strain_method == "SG": #has a lag
+    strain_col_1  = "Displacement (Strain Gauge 1)"  # Displacement column for strain gauge 1
+    strain_col_2  = "Displacement (Strain Gauge 2)"  # Displacement column for strain gauge 2
+
+    # File path for FEA data (remains the same for all tests)
+    FEA_file = "C:/Users/USER/Desktop/Uni Files/Y4/gip-ddest/RHTT csv/FEA_L_DRY_preoffset.csv"
+
+    # Read FEA data
+    df_fea = pd.read_csv(FEA_file, encoding='latin1', header=None)
+    df_fea.columns = ["Strain", "Stress"]
+    print(f"Loaded FEA data from: {FEA_file}, {len(df_fea)} rows")
+
+
+# Drop NaN values (if any conversion failed)
+df_fea = df_fea.dropna()
 
 # Normalize FEA strain if needed
 df_fea["Strain"] = pd.to_numeric(df_fea["Strain"], errors="coerce")  # Convert to float, set errors to NaN
 df_fea["Stress"] = pd.to_numeric(df_fea["Stress"], errors="coerce")  # Convert stress as well
 
 
-# Drop NaN values (if any conversion failed)
-df_fea = df_fea.dropna()
+
 
 # Debug print to verify strain range
 print("FEA Strain Min/Max:", df_fea["Strain"].min(), df_fea["Strain"].max())
 
 # Cross-sectional area in mm² (6mm x 2mm)
 A = 12  
+initial_length = 25.75 # Initial position of the specimen in mm
 
 # Define experimental strain and load columns
-strain_col = "Strain - RC (Extensometer 1)"  # Strain column (already in decimal form)
 load_col = "Load ADC 1 channel 1"  # Load column
 alt_load_col = "Voltage ADC 1 channel 1"  # Alternative if load_col is missing
 
@@ -53,22 +82,25 @@ for i in range(1, 6):
             else:
                 raise ValueError(f"Required columns not found in {EXP_file}.")
 
-        # Ensure necessary columns exist
-        if strain_col not in df.columns or load_col not in df.columns:
-            raise ValueError(f"Required columns not found in {EXP_file}.")
+        if strain_method == "Ex":
+             df[strain_col_2] = 0.0
 
         # Drop NaN values
-        df = df[[strain_col, load_col]].dropna()
+        df = df[[strain_col_1,strain_col_2, load_col]].dropna()
         print(f"After dropping NaN: {len(df)} rows remaining.")
 
         # Convert to numeric
-        df[strain_col] = pd.to_numeric(df[strain_col], errors="coerce")
+        df[strain_col_1] = pd.to_numeric(df[strain_col_1], errors="coerce")
+        df[strain_col_2] = pd.to_numeric(df[strain_col_2], errors="coerce")
         df[load_col] = pd.to_numeric(df[load_col], errors="coerce")
         df = df.dropna()  # Drop rows where conversion failed
         print(f"After numeric conversion: {len(df)} rows remaining.")
 
         # Calculate Engineering Stress and Strain
-        df["Engineering Strain"] = df[strain_col]
+        if strain_method == "Ex":
+            df["Engineering Strain"] = (df[strain_col_1] + df[strain_col_2])
+        elif strain_method == "SG":
+            df["Engineering Strain"] = (df[strain_col_1] + df[strain_col_2])/ initial_length
         df["Engineering Stress"] = (df[load_col] * 1e3 / 2) / A  # Stress in MPa (N/mm²)
 
         # Calculate True Stress and Strain
@@ -95,14 +127,14 @@ axes[0].plot(df_fea["Strain"], df_fea["Stress"], label="FEA", color='orange', li
 axes[1].plot(df_fea["Strain"], df_fea["Stress"], label="FEA", color='orange', linestyle="--")
 
 # Formatting Engineering Stress-Strain Curve
-axes[0].set_xlabel("Engineering Strain (mm/mm)")
+axes[0].set_xlabel("Engineering Strain")
 axes[0].set_ylabel("Engineering Stress (MPa)")
 axes[0].set_title("Engineering Stress-Strain Curve, RHTT_L_DRY")
 axes[0].legend()
 axes[0].grid(True)
 
 # Formatting True Stress-Strain Curve
-axes[1].set_xlabel("True Strain (mm/mm)")
+axes[1].set_xlabel("True Strain")
 axes[1].set_ylabel("True Stress (MPa)")
 axes[1].set_title("True Stress-Strain Curve, RHTT_L_DRY")
 axes[1].legend()
