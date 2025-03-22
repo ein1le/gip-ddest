@@ -114,36 +114,6 @@ for i in range(1, 6):
         # True Stress: σ_true = σ_eng * (1 + ε_eng)
         df["True Stress"] = df["Engineering Stress"] * (1 + df["Engineering Strain"])
 
-        # Apply truncation to the data based on stress threshold
-        stress_threshold = 10
-        search_start_index = 400
-        
-        # Make sure we have at least search_start_index rows before proceeding
-        if len(df) > search_start_index:
-            valid_indices = df.loc[search_start_index:, "Engineering Stress"] \
-                            .where(df.loc[search_start_index:, "Engineering Stress"] >= stress_threshold) \
-                            .dropna().index
-
-            if not valid_indices.empty:
-                last_valid_index = valid_indices[-1]
-                print(f"Truncating {file_path} at index {last_valid_index}.")
-                df = df.loc[:last_valid_index]
-            else:
-                print(f"No valid truncation index found for {file_path}. Keeping full dataset.")
-        else:
-            print(f"Dataset too small to apply truncation for {file_path}. Keeping full dataset.")
-
-        # Final check after truncation
-        if df.empty:
-            print(f"No data left after truncation for {file_path}. Skipping.")
-            continue
-
-        # Optionally save True Stress & Strain if needed
-        if test_type == "RHTT_L_DRY" and strain_method == "Ex" and i == 1:
-            output_file = f"{test_type}_{i}_{strain_method}_True.csv"
-            df[['True Stress', 'True Strain']].to_csv(output_file, index=False)
-            print(f"Saved True Stress and Strain of test {i} {test_type} to {output_file}")
-
         # Store paired strain-stress data as numpy arrays
         strain_data.append(df["Engineering Strain"].values)
         stress_data.append(df["Engineering Stress"].values)
@@ -159,11 +129,6 @@ for i in range(1, 6):
         print(f"File {file_path} not found. Skipping.")
     except Exception as e:
         print(f"Error loading {file_path}: {e}")
-
-# Check if we have valid data to process
-if not strain_data or all(len(s) == 0 for s in strain_data):
-    print("No valid data collected from any test file. Exiting.")
-    exit()
 
 # Define a common strain range for interpolation
 # Find the minimum and maximum strain across all tests
@@ -242,8 +207,8 @@ if interpolated_stresses:
     axes[0].fill_between(common_strain, lower_bound, upper_bound, alpha=0.3, color='blue', label="± 1 Std Dev")
     
     # Plot individual stress-strain curves as thin lines
-    #for i, interp_stress in enumerate(interpolated_stresses):
-        #axes[0].plot(common_strain, interp_stress, alpha=0.3, linewidth=0.8, color='gray', label=f"Test {i+1}" if i == 0 else "")
+    for i, interp_stress in enumerate(interpolated_stresses):
+        axes[0].plot(common_strain, interp_stress, alpha=0.3, linewidth=0.8, color='gray', label=f"Test {i+1}" if i == 0 else "")
     
     axes[0].set_xlabel("Engineering Strain")
     axes[0].set_ylabel("Engineering Stress (MPa)")
@@ -256,9 +221,9 @@ if interpolated_stresses:
     axes[1].fill_between(true_strain, true_lower_bound, true_upper_bound, alpha=0.3, color='red', label="± 1 Std Dev")
     
     # Plot individual true stress-strain curves
-    #for i, interp_stress in enumerate(interpolated_stresses):
-        #true_stress_i = interp_stress * (1 + common_strain)
-        #axes[1].plot(true_strain, true_stress_i, alpha=0.3, linewidth=0.8, color='gray', label=f"Test {i+1}" if i == 0 else "")
+    for i, interp_stress in enumerate(interpolated_stresses):
+        true_stress_i = interp_stress * (1 + common_strain)
+        axes[1].plot(true_strain, true_stress_i, alpha=0.3, linewidth=0.8, color='gray', label=f"Test {i+1}" if i == 0 else "")
     
     axes[1].set_xlabel("True Strain")
     axes[1].set_ylabel("True Stress (MPa)")
