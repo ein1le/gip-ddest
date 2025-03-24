@@ -114,6 +114,29 @@ for i in range(1, 6):
         # True Stress: σ_true = σ_eng * (1 + ε_eng)
         df["True Stress"] = df["Engineering Stress"] * (1 + df["Engineering Strain"])
 
+        stress_threshold = 10
+        search_start_index = 400
+        
+        # Make sure we have at least search_start_index rows before proceeding
+        if len(df) > search_start_index:
+            valid_indices = df.loc[search_start_index:, "Engineering Stress"] \
+                            .where(df.loc[search_start_index:, "Engineering Stress"] >= stress_threshold) \
+                            .dropna().index
+
+            if not valid_indices.empty:
+                last_valid_index = valid_indices[-1]
+                print(f"Truncating {file_path} at index {last_valid_index}.")
+                df = df.loc[:last_valid_index]
+            else:
+                print(f"No valid truncation index found for {file_path}. Keeping full dataset.")
+        else:
+            print(f"Dataset too small to apply truncation for {file_path}. Keeping full dataset.")
+
+        # Final check after truncation
+        if df.empty:
+            print(f"No data left after truncation for {file_path}. Skipping.")
+            continue
+      
         # Store paired strain-stress data as numpy arrays
         strain_data.append(df["Engineering Strain"].values)
         stress_data.append(df["Engineering Stress"].values)
@@ -122,8 +145,8 @@ for i in range(1, 6):
         max_stress = df["Engineering Stress"].max()
         Ultimate_Tensile_Strength[f"Test {i}"] = max_stress
 
-        max_strain = df["Engineering Strain"].max() * 100  # Convert to percentage
-        Ductility[f"Test {i}"] = max_strain
+        max_strain = df["Engineering Strain"].max()  # engineering strain value
+        Ductility[f"Test {i}"] = max_strain * 100  # convert to percentage
 
     except FileNotFoundError:
         print(f"File {file_path} not found. Skipping.")
@@ -199,67 +222,77 @@ if interpolated_stresses:
     true_upper_bound = upper_bound * (1 + common_strain)
     true_lower_bound = lower_bound * (1 + common_strain)
     
-    # Plotting the results
+    # ====== Truncate the stress and strain graph at the average ductility ======
+    # Calculate the average ductility (in %), then convert it to an engineering strain cutoff (ductility in decimal)
+    if Ductility:
+        avg_ductility = round(sum(Ductility.values()) / len(Ductility), 2)  # in %
+        cutoff_strain = avg_ductility / 100  # convert percentage to engineering strain
+    else:
+        cutoff_strain = max_strain  # fallback if no ductility data
+
+    # Create a mask to truncate arrays where engineering strain exceeds the average ductility cutoff
+    mask_trunc = common_strain <= cutoff_strain
+
+    # Truncate common strain and related arrays using the mask
+    truncated_common_strain = common_strain[mask_trunc]
+    truncated_avg_interpolated_stress = avg_interpolated_stress[mask_trunc]
+    truncated_lower_bound = lower_bound[mask_trunc]
+    truncated_upper_bound = upper_bound[mask_trunc]
+
+    # For true stress-strain, compute corresponding true strain and stress
+    truncated_true_strain = np.log(1 + truncated_common_strain)
+    truncated_true_stress = truncated_avg_interpolated_stress * (1 + truncated_common_strain)
+    truncated_true_lower_bound = truncated_lower_bound * (1 + truncated_common_strain)
+    truncated_true_upper_bound = truncated_upper_bound * (1 + truncated_common_strain)
+    
+    # Plotting the results (truncated)
     fig, axes = plt.subplots(1, 2, figsize=(14, 6))
     
-    # Plot Engineering Stress-Strain with uncertainty
-    axes[0].plot(common_strain, avg_interpolated_stress, label=f"Avg Engineering Stress-Strain - {test_type}", color='blue')
-    axes[0].fill_between(common_strain, lower_bound, upper_bound, alpha=0.3, color='blue', label="± 1 Std Dev")
+    # Plot Engineering Stress-Strain with uncertainty (truncated)
+    axes[0].plot(truncated_common_strain, truncated_avg_interpolated_stress, label=f"Avg Engineering Stress-Strain - {test_type}", color='blue')
+    axes[0].fill_between(truncated_common_strain, truncated_lower_bound, truncated_upper_bound, alpha=0.3, color='blue', label="± 1 Std Dev")
     
-    # Plot individual stress-strain curves as thin lines
+    # Plot individual stress-strain curves (truncated)
     for i, interp_stress in enumerate(interpolated_stresses):
-        axes[0].plot(common_strain, interp_stress, alpha=0.3, linewidth=0.8, color='gray', label=f"Test {i+1}" if i == 0 else "")
+        interp_stress_trunc = interp_stress[mask_trunc]
+        axes[0].plot(truncated_common_strain, interp_stress_trunc, alpha=0.3, linewidth=0.8, color='gray', label=f"Test {i+1}" if i == 0 else "")
     
     axes[0].set_xlabel("Engineering Strain")
     axes[0].set_ylabel("Engineering Stress (MPa)")
-    axes[0].set_title(f"Engineering Stress-Strain Curve - {test_type}")
+    axes[0].set_title(f"Engineering Stress-Strain Curve - {test_type}\n(Truncated at Avg Ductility: {cutoff_strain:.4f})")
     axes[0].legend()
     axes[0].grid(True)
     
-    # Plot True Stress-Strain with uncertainty
-    axes[1].plot(true_strain, true_stress, label=f"Avg True Stress-Strain - {test_type}", color='red')
-    axes[1].fill_between(true_strain, true_lower_bound, true_upper_bound, alpha=0.3, color='red', label="± 1 Std Dev")
+    # Plot True Stress-Strain with uncertainty (truncated)
+    axes[1].plot(truncated_true_strain, truncated_true_stress, label=f"Avg True Stress-Strain - {test_type}", color='red')
+    axes[1].fill_between(truncated_true_strain, truncated_true_lower_bound, truncated_true_upper_bound, alpha=0.3, color='red', label="± 1 Std Dev")
     
-    # Plot individual true stress-strain curves
+    # Plot individual true stress-strain curves (truncated)
     for i, interp_stress in enumerate(interpolated_stresses):
-        true_stress_i = interp_stress * (1 + common_strain)
-        axes[1].plot(true_strain, true_stress_i, alpha=0.3, linewidth=0.8, color='gray', label=f"Test {i+1}" if i == 0 else "")
+        interp_stress_trunc = interp_stress[mask_trunc]
+        true_stress_i_trunc = interp_stress_trunc * (1 + truncated_common_strain)
+        axes[1].plot(truncated_true_strain, true_stress_i_trunc, alpha=0.3, linewidth=0.8, color='gray', label=f"Test {i+1}" if i == 0 else "")
     
     axes[1].set_xlabel("True Strain")
     axes[1].set_ylabel("True Stress (MPa)")
-    axes[1].set_title(f"True Stress-Strain Curve - {test_type}")
+    axes[1].set_title(f"True Stress-Strain Curve - {test_type}\n(Truncated at Avg Ductility)")
     axes[1].legend()
     axes[1].grid(True)
     
-    # Display the final plots
     plt.tight_layout()
-    plt.savefig(f"{test_type}_{strain_method}_stress_strain.png", dpi=300, bbox_inches='tight')
     plt.show()
+
+    df_true = pd.DataFrame({
+        "True Strain": truncated_true_strain,
+        "True Stress (MPa)": truncated_true_stress,
+        "Lower Bound (MPa)": truncated_true_lower_bound,
+        "Upper Bound (MPa)": truncated_true_upper_bound
+    })
+
+    csv_filename = f"{test_type}_{strain_method}_true_stress_strain.csv"
+    df_true.to_csv(csv_filename, index=False)
+    print(f"Truncated True Stress-Strain data saved to {csv_filename}")
     
-    # Create additional plot with coefficient of variation to quantify uncertainty
-    fig, ax = plt.subplots(figsize=(10, 6))
-    
-    # Calculate coefficient of variation (CV = std/mean * 100%)
-    # Handle division by zero or near-zero values
-    with np.errstate(divide='ignore', invalid='ignore'):
-        cv = np.where(avg_interpolated_stress != 0, 
-                       (std_interpolated_stress / avg_interpolated_stress) * 100, 
-                       np.nan)
-    
-    # Replace any infinity or NaN with NaN to avoid plotting issues
-    cv = np.where(np.isfinite(cv), cv, np.nan)
-    
-    # Plot coefficient of variation
-    ax.plot(common_strain, cv, label="Coefficient of Variation")
-    ax.set_xlabel("Engineering Strain")
-    ax.set_ylabel("Coefficient of Variation (%)")
-    ax.set_title(f"Variation in Stress Measurements - {test_type}")
-    ax.grid(True)
-    
-    # Save and display the CV plot
-    plt.tight_layout()
-    plt.savefig(f"{test_type}_{strain_method}_variation.png", dpi=300, bbox_inches='tight')
-    plt.show()
     
 else:
     print("No valid data sets to interpolate and average.")
