@@ -40,6 +40,7 @@ elif strain_method == "ESG":
 load_col = "Load ADC 1 channel 1"
 alt_load_col = "Voltage ADC 1 channel 1"
 
+
 # Initialize empty lists to store the strain and stress data
 strain_data = []
 stress_data = []
