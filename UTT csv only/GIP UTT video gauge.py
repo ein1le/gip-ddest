@@ -6,7 +6,7 @@ from scipy.interpolate import interp1d
 from scipy.stats import t
 from scipy.optimize import curve_fit
 
-
+plt.rcParams["font.family"] = "Times New Roman"
 
 # Fundamental constants
 e = np.e
@@ -24,7 +24,6 @@ for i in range(2, n + 2):  # Loop from 2 to n, to include all tests
 
 # Load data F (N)
 F = []
-
 for j in range(0, n):  # Change range to process all n tests
     F_data = data[j].iloc[75:, 0].values * 1000
     F.append(F_data - F_data[0])
@@ -85,7 +84,7 @@ for i in range(n):  # Loop through all n experiments
     
     sign_change_indices = np.where(np.diff(np.sign(diff)))[0]
     if len(sign_change_indices) == 0:
-        print(f"Test {exp+1}: No intersection found.")
+        print(f"Test {i+1}: No intersection found.")
         yield_list.append(np.nan)
         continue
     
@@ -97,18 +96,19 @@ for i in range(n):  # Loop through all n experiments
     yield_list.append(yield_stress)
 
 # Plotting only True Stress-Strain curves
-plt.figure(figsize=(7, 7))
+plt.figure(figsize=(16, 8))
 
 for i in range(n):  # Loop through all n experiments
-    plt.plot(all_ε_t[i], all_σ_t[i] / 1e6, label=f"Exp {i+1} True Stress-Strain")
+    plt.plot(all_ε_t[i], all_σ_t[i] / 1e6, label=f"Test {i+1}")
 
 plt.xlabel('True Strain')
 plt.ylabel('True Stress (MPa)')
-plt.title('INSTRON force data read by video extensometer, video extensometer strain data', fontsize = 10)
+plt.title('True Stress-Strain Curves - INSTRON')
 plt.ylim(0, 400)
 plt.grid(True)
 plt.legend()
 plt.tight_layout()
+plt.savefig("True Stress-Strain Curves.png")
 plt.show()
 
 # Convert lists to numpy arrays for easier processing (if not already)
@@ -159,7 +159,7 @@ mean_stress_final = mean_stress[mask2]
 ci_final = ci[mask2]
 
 # Plot the truncated average stress curve with 95% CI
-plt.figure(figsize=(8, 6))
+plt.figure(figsize=(16, 8))
 plt.plot(common_strain_final, mean_stress_final / 1e6, color='blue', label='Mean True Stress')
 plt.fill_between(common_strain_final,
                  (mean_stress_final - ci_final) / 1e6,
@@ -171,6 +171,7 @@ plt.title('Average True Stress-Strain Curve')
 plt.grid(True)
 plt.legend()
 plt.tight_layout()
+plt.savefig("Average True Stress-Strain Curve.png")
 plt.show()
 
 df_points_avg = pd.DataFrame({
@@ -228,7 +229,6 @@ def calculate_yield_strength_and_points(common_strain_final, mean_stress_final, 
     plt.scatter([max_strain], [max_stress], color='blue', label="Maximum Strain Point")
     plt.scatter([yield_strain], [yield_stress], color='red', label="Yield Point")
 
-    
     plt.xlabel("Strain")
     plt.ylabel("Stress")
     plt.title("Points on Average Stress-Strain Curve")
