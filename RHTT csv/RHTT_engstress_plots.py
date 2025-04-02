@@ -1,7 +1,9 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy import interpolate  # <-- Make sure to add this import for interp1d!
+from scipy import interpolate 
+from scipy.optimize import fsolve
+from sklearn.linear_model import LinearRegression
 
 
 plt.rcParams["font.family"] = "Times New Roman"
@@ -48,6 +50,8 @@ dfs = {}
 # Also track UTS & Ductility
 Ultimate_Tensile_Strength = {}
 Ductility = {}
+Yield_Strength = {}
+
 
 def create_average_test_five(dfs, tests_to_average, smoothing_window=10):
     """
@@ -333,6 +337,65 @@ if 5 not in dfs:
     create_average_test_five(dfs, tests_to_average=[1, 2, 3, 4])
 
 
+
+def calculate_yield_strength(strain, stress, offset=0.002, elastic_strain_limit=0.005):
+    """
+    Calculate the 0.2% offset yield strength from stress-strain data
+    using a direct, piecewise approach (no fsolve).
+    """
+    # 1. Identify the elastic region (up to elastic_strain_limit)
+    elastic_mask = strain < elastic_strain_limit
+    elastic_strain = strain[elastic_mask].values.reshape(-1, 1)
+    elastic_stress = stress[elastic_mask].values
+
+    # 2. Linear regression in the elastic region to get slope (Young's modulus)
+    linreg = LinearRegression()
+    linreg.fit(elastic_strain, elastic_stress)
+    E = linreg.coef_[0]
+
+    # 3. Build the offset curve => sigma_offset = E*(epsilon - offset)
+    sigma_offset = E * (strain - offset)
+
+    # 4. Calculate diff = actual_stress - offset_stress
+    diff = stress - sigma_offset
+
+    # 5. Find index where diff changes sign from negative to positive
+    #    That indicates the intersection region.
+    sign_change_indices = np.where(np.diff(np.sign(diff)) != 0)[0]
+    if len(sign_change_indices) == 0:
+        # We didn't find an intersection (maybe data didn't cross).
+        return np.nan
+
+    # We'll assume the first sign change is the yield point
+    idx = sign_change_indices[0]
+
+    # Data points bracketing the intersection
+    x1, x2 = strain[idx], strain[idx+1]
+    y1, y2 = stress[idx], stress[idx+1]
+    offset1, offset2 = sigma_offset[idx], sigma_offset[idx+1]
+
+    # We want where actual_stress == offset_stress.
+    # We'll do linear interpolation in strain dimension:
+    # Let the intersection strain be xi, so:
+    #   (xi - x1)/(x2 - x1) = (offset_stress_x1 - y1)/( (y2 - y1) - (offset2 - offset1) )
+    # but let's do it more systematically by solving:
+    #   y1 + (y2 - y1)*t = offset1 + (offset2 - offset1)*t
+    # => (y2 - y1 - (offset2 - offset1))*t = offset1 - y1
+    # => t = (offset1 - y1) / ((y2 - y1) - (offset2 - offset1))
+
+    denom = ( (y2 - y1) - (offset2 - offset1) )
+    if abs(denom) < 1e-12:
+        # Avoid divide-by-zero
+        return np.nan
+
+    t = (offset1 - y1) / denom
+    xi = x1 + (x2 - x1)*t  # intersection strain
+    yi = y1 + (y2 - y1)*t  # intersection stress
+
+    # This yi is the yield stress
+    return yi
+
+
 for test_i, df_ in dfs.items():
     max_stress_new = df_["Engineering Stress"].max()
     Ultimate_Tensile_Strength[f"Test {test_i}"] = max_stress_new
@@ -340,7 +403,8 @@ for test_i, df_ in dfs.items():
     max_strain_new = df_["Engineering Strain"].max() * 100.0
     Ductility[f"Test {test_i}"] = max_strain_new
 
-
+    yield_strength = calculate_yield_strength(df_["Engineering Strain"], df_["Engineering Stress"])
+    Yield_Strength[f"Test {test_i}"] = yield_strength
 
 # -------------
 #  4) PLOT ALL TESTS
@@ -552,3 +616,13 @@ if Ductility:
         print(f"{test_id}: {round(val, 2)}%")
 else:
     print("\nNo ductility data available.")
+
+if Yield_Strength:
+    avg_yield = round(sum(Yield_Strength.values()) / len(Yield_Strength), 2)
+    std_yield = round(np.std(list(Yield_Strength.values())), 2)
+    cv_yield = round((std_yield / avg_yield) * 100, 2) if avg_yield != 0 else "N/A"
+    print(f"\nAverage Yield Strength for {test_type}: {avg_yield} ± {std_yield} MPa (CV: {cv_yield}%)")
+    for test_id, val in Yield_Strength.items():
+        print(f"{test_id}: {round(val, 2)} MPa")
+else:
+    print("\nNo yield strength data available.")
