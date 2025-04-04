@@ -52,6 +52,10 @@ Ultimate_Tensile_Strength = {}
 Ductility = {}
 Yield_Strength = {}
 
+# Friction adjusted 
+adj_Ultimate_Tensile_Strength = {}
+adj_Yield_Strength = {}
+
 
 def create_average_test_five(dfs, tests_to_average, smoothing_window=10):
     """
@@ -395,6 +399,14 @@ def calculate_yield_strength(strain, stress, offset=0.002, elastic_strain_limit=
     # This yi is the yield stress
     return yi
 
+if test_type == "RHTT_L_DRY" or test_type == "RHTT_S_DRY":
+    mu = 0.2595
+elif test_type == "RHTT_L_LUB" or test_type == "RHTT_S_LUB" :
+    mu = 0.0471
+
+for dfkey, df_ in dfs.items():
+    df_["Friction Adjusted Engineering Stress"] = df_["Engineering Stress"] * (np.exp(mu * 30 * np.pi/180))
+
 
 for test_i, df_ in dfs.items():
     max_stress_new = df_["Engineering Stress"].max()
@@ -406,9 +418,24 @@ for test_i, df_ in dfs.items():
     yield_strength = calculate_yield_strength(df_["Engineering Strain"], df_["Engineering Stress"])
     Yield_Strength[f"Test {test_i}"] = yield_strength
 
+    adj_max_stress_new = df_["Friction Adjusted Engineering Stress"].max()
+    adj_Ultimate_Tensile_Strength[f"Test {test_i}"] = adj_max_stress_new
+
+    adj_yield_strength = calculate_yield_strength(df_["Engineering Strain"], df_["Friction Adjusted Engineering Stress"])
+    adj_Yield_Strength[f"Test {test_i}"] = adj_yield_strength
+
 # -------------
 #  4) PLOT ALL TESTS
 # -------------
+if test_type == "RHTT_L_DRY" :
+    formatted_test_name = "Small Clearance, High Friction"
+elif test_type == "RHTT_S_DRY":
+    formatted_test_name = "Large Clearance, High Friction"
+elif test_type == "RHTT_L_LUB":
+    formatted_test_name = "Small Clearance, Low Friction"
+elif test_type == "RHTT_S_LUB":
+    formatted_test_name = "Large Clearance, Low Friction"
+
 if not dfs:
     print("No data loaded. Exiting.")
 else:
@@ -420,17 +447,31 @@ else:
 
     axes[0].set_xlabel("Engineering Strain")
     axes[0].set_ylabel("Engineering Stress (MPa)")
-    axes[0].set_title(f"Engineering Stress-Strain Curve - Small Clearance, Low Friction")
+    axes[0].set_title(f"Engineering Stress-Strain Curve - {formatted_test_name}")
     axes[0].grid(True)
     axes[0].legend()
 
     axes[1].set_xlabel("True Strain")
     axes[1].set_ylabel("True Stress (MPa)")
-    axes[1].set_title(f"True Stress-Strain Curve - Small Clearance, Low Friction")
+    axes[1].set_title(f"True Stress-Strain Curve - {formatted_test_name}")
     axes[1].grid(True)
     axes[1].legend()
     plt.tight_layout()
     plt.savefig(f"{test_type}_stress_strain_curves.png")
+    plt.show()
+
+    plt.figure( figsize=(12, 6))
+    for test_i in sorted(dfs.keys()):
+        df_ = dfs[test_i]
+        plt.plot(df_["Engineering Strain"], df_["Friction Adjusted Engineering Stress"], label=f"Test {test_i}")
+
+    plt.xlabel("Engineering Strain")
+    plt.ylabel("Friction Adjusted Engineering Stress (MPa)")
+    plt.title(f"Friction Adjusted Engineering Stress-Strain Curve - {formatted_test_name}")
+    plt.grid(True)
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(f"{test_type}_adj_stress_strain_curves.png")
     plt.show()
 
 ## Add AVERAGE PLOTS HERE
@@ -539,7 +580,7 @@ if len(dfs) > 0:
 
         axes[0].set_xlabel("Average Engineering Strain")
         axes[0].set_ylabel("Average Engineering Stress (MPa)")
-        axes[0].set_title(f"Average Engineering Stress-Strain - Small Clearance, Low Friction")
+        axes[0].set_title(f"Average Engineering Stress-Strain - {formatted_test_name}")
         axes[0].legend()
         axes[0].grid(True)
 
@@ -567,7 +608,7 @@ if len(dfs) > 0:
 
         axes[1].set_xlabel("Average True Strain")
         axes[1].set_ylabel("Average True Stress (MPa)")
-        axes[1].set_title("Average True Stress-Strain - Small Clearance, Low Friction")
+        axes[1].set_title(f"Average True Stress-Strain - {formatted_test_name}")
         axes[1].legend()
         axes[1].grid(True)
         plt.tight_layout()
@@ -626,3 +667,24 @@ if Yield_Strength:
         print(f"{test_id}: {round(val, 2)} MPa")
 else:
     print("\nNo yield strength data available.")
+
+if adj_Ultimate_Tensile_Strength:
+    avg_adj_UTS = round(sum(adj_Ultimate_Tensile_Strength.values()) / len(adj_Ultimate_Tensile_Strength), 2)
+    std_adj_UTS = round(np.std(list(adj_Ultimate_Tensile_Strength.values())), 2)
+    cv_adj_UTS = round((std_adj_UTS / avg_adj_UTS) * 100, 2) if avg_adj_UTS != 0 else "N/A"
+    print(f"\nAverage UTS (Friction Adjusted) for {test_type}: {avg_adj_UTS} ± {std_adj_UTS} MPa (CV: {cv_adj_UTS}%)")
+    for test_id, val in adj_Ultimate_Tensile_Strength.items():
+        print(f"{test_id}: {round(val, 2)} MPa")
+else:
+    print("\nNo friction adjusted UTS data available.")
+
+
+if adj_Yield_Strength:
+    avg_adj_yield = round(sum(adj_Yield_Strength.values()) / len(adj_Yield_Strength), 2)
+    std_adj_yield = round(np.std(list(adj_Yield_Strength.values())), 2)
+    cv_adj_yield = round((std_adj_yield / avg_adj_yield) * 100, 2) if avg_adj_yield != 0 else "N/A"
+    print(f"\nAverage Yield Strength (Friction Adjusted) for {test_type}: {avg_adj_yield} ± {std_adj_yield} MPa (CV: {cv_adj_yield}%)")
+    for test_id, val in adj_Yield_Strength.items():
+        print(f"{test_id}: {round(val, 2)} MPa")
+else:
+    print("\nNo friction adjusted yield strength data available.")

@@ -61,6 +61,17 @@ LFT_2LR_coeffs  = []
 LFT_DRY_coeffs  = []
 LFT_SG_coeffs   = []
 
+representative_tests = {
+    "2L": 5,
+    "2LR": 3,
+    "PTFE": 3,
+    "DRY": 5,
+    "SG": 4
+}
+
+representative_friction_ratios = {}
+
+
 def compute_coefficients(test_name: str, base_path: str, coeff_list: list):
     """
     For each of the 5 tests in the given test set:
@@ -76,7 +87,7 @@ def compute_coefficients(test_name: str, base_path: str, coeff_list: list):
     # Lists to hold arrays for plotting after processing all 5 tests
     all_load_series = []
     all_interpolations = []
-
+    rep_index = representative_tests[test_name] - 1  # zero-based
     # 1) Loop through all 5 tests, read their CSV, compute friction
     for i in range(5):
         file_path = f"{base_path}{i+1}.csv"
@@ -99,6 +110,8 @@ def compute_coefficients(test_name: str, base_path: str, coeff_list: list):
         coeff_list.append(coeff_avg)
         print(f"{test_name} Test {i+1}: Coeff Avg = {coeff_avg:.4f}")
 
+        if i == rep_index:
+            representative_friction_ratios[test_name] = ratio
         # Store data for plotting after the loop
         all_load_series.append(load_series)
         all_interpolations.append(interpolation)
@@ -179,3 +192,18 @@ print(f"Average 2LR Coefficient: {sum(LFT_2LR_coeffs)/len(LFT_2LR_coeffs):.4f}")
 print(f"Standard Deviation 2LR Coefficient: {np.std(LFT_2LR_coeffs):.4f}")
 
 # ────────────────────────────────────────────────────────────────────────────────
+# If you want all representative friction ratio series on one figure:
+time = np.arange(4800) / 10.0  # 4800 points, each at 0.1s
+
+plt.figure(figsize=(18, 6))
+
+for t_name, ratio_array in representative_friction_ratios.items():
+    plt.plot(time, ratio_array, label=f"{t_name}")
+
+plt.xlabel("Time (s)")
+plt.ylabel("Interfacial Friction Ratio (N)")
+plt.grid(True)
+plt.legend(loc="upper left")
+plt.tight_layout()
+plt.savefig("representative_friction_ratios.png", dpi=300)
+plt.show()
