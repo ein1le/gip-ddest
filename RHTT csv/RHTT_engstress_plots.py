@@ -4,9 +4,15 @@ import numpy as np
 from scipy import interpolate 
 from scipy.optimize import fsolve
 from sklearn.linear_model import LinearRegression
+import matplotlib as mpl
 
+import matplotlib.font_manager as fm
+font_path = r"C:\Users\USER\Desktop\Uni Files\Y4\gip-ddest\computer-modern\cmunrm.ttf"
+fm.fontManager.addfont(font_path)
+cm_font = fm.FontProperties(fname=font_path)
+font_name = cm_font.get_name()
+plt.rcParams['font.family'] = font_name
 
-plt.rcParams["font.family"] = "Times New Roman"
 
 # Define test type options
 test_types = ["RHTT_L_DRY", "RHTT_S_DRY", "RHTT_L_LUB", "RHTT_S_LUB"]
@@ -405,7 +411,7 @@ elif test_type == "RHTT_L_LUB" or test_type == "RHTT_S_LUB" :
     mu = 0.0471
 
 for dfkey, df_ in dfs.items():
-    df_["Friction Adjusted Engineering Stress"] = df_["Engineering Stress"] * (np.exp(mu * 30 * np.pi/180))
+    df_["Friction Adjusted Engineering Stress"] = df_["Engineering Stress"] * (np.exp(-mu * 30 * np.pi/180))
 
 
 for test_i, df_ in dfs.items():
@@ -439,25 +445,40 @@ elif test_type == "RHTT_S_LUB":
 if not dfs:
     print("No data loaded. Exiting.")
 else:
-    fig, axes = plt.subplots(1, 2, figsize=(18, 6))
+    fig_eng, ax_eng = plt.subplots(figsize=(15, 10)) 
+
     for test_i in sorted(dfs.keys()):
         df_ = dfs[test_i]
-        axes[0].plot(df_["Engineering Strain"], df_["Engineering Stress"], label=f"Test {test_i}")
-        axes[1].plot(df_["True Strain"], df_["True Stress"], label=f"Test {test_i}")
+        ax_eng.plot(df_["Engineering Strain"], df_["Engineering Stress"], label=f"Test {test_i}",linewidth = 2)
 
-    axes[0].set_xlabel("Engineering Strain")
-    axes[0].set_ylabel("Engineering Stress (MPa)")
-    axes[0].set_title(f"Engineering Stress-Strain Curve - {formatted_test_name}")
-    axes[0].grid(True)
-    axes[0].legend()
+    ax_eng.set_xlabel("Engineering Strain",fontsize = 28)
+    ax_eng.set_ylabel("Engineering Stress (MPa)",fontsize = 28)
+    #ax_eng.set_title(f"Engineering Stress-Strain Curve - {formatted_test_name}")
+    ax_eng.tick_params(axis='both', labelsize=22)
+    ax_eng.grid(True)
+    ax_eng.legend(fontsize = 24)
 
-    axes[1].set_xlabel("True Strain")
-    axes[1].set_ylabel("True Stress (MPa)")
-    axes[1].set_title(f"True Stress-Strain Curve - {formatted_test_name}")
-    axes[1].grid(True)
-    axes[1].legend()
     plt.tight_layout()
-    plt.savefig(f"{test_type}_stress_strain_curves.png")
+    plt.savefig(f"{test_type}_engineering_stress_strain.png")
+    plt.show()
+
+
+    # Second Figure: True Stress-Strain
+    fig_true, ax_true = plt.subplots(figsize=(15, 10))  # separate figure
+
+    for test_i in sorted(dfs.keys()):
+        df_ = dfs[test_i]
+        ax_true.plot(df_["True Strain"], df_["True Stress"], label=f"Test {test_i}",linewidth = 2)
+
+    ax_true.set_xlabel("True Strain",fontsize = 28)
+    ax_true.set_ylabel("True Stress (MPa)",fontsize = 28)
+    #ax_true.set_title(f"True Stress-Strain Curve - {formatted_test_name}")
+    ax_true.tick_params(axis='both', labelsize=22)
+    ax_true.grid(True)
+    ax_true.legend(fontsize = 24)
+
+    plt.tight_layout()
+    plt.savefig(f"{test_type}_true_stress_strain.png")
     plt.show()
 
     plt.figure( figsize=(12, 6))
@@ -465,16 +486,16 @@ else:
         df_ = dfs[test_i]
         plt.plot(df_["Engineering Strain"], df_["Friction Adjusted Engineering Stress"], label=f"Test {test_i}")
 
-    plt.xlabel("Engineering Strain")
-    plt.ylabel("Friction Adjusted Engineering Stress (MPa)")
-    plt.title(f"Friction Adjusted Engineering Stress-Strain Curve - {formatted_test_name}")
+    plt.xlabel("Engineering Strain",fontsize = 28)
+    plt.ylabel("Friction Adjusted Engineering Stress (MPa)",fontsize = 28)
+    #plt.title(f"Friction Adjusted Engineering Stress-Strain Curve - {formatted_test_name}")
     plt.grid(True)
-    plt.legend()
+    plt.legend(fontsize = 24)
     plt.tight_layout()
     plt.savefig(f"{test_type}_adj_stress_strain_curves.png")
     plt.show()
 
-## Add AVERAGE PLOTS HERE
+## AVERAGE PLOTS HERE
 if len(dfs) > 0:
     # Prepare lists of strain and stress
     strain_data = []

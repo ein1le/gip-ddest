@@ -47,6 +47,8 @@ A_0 = 0.006 * 0.002
 # Initialize lists to store all resampled stress-strain data
 all_ε_t = []
 all_σ_t = []
+all_ε_e = []
+all_σ_e = []
 
 UTS_list = []
 E_list = []
@@ -65,6 +67,8 @@ for i in range(n):  # Loop through all n experiments
     # Add the resampled data to the lists
     all_ε_t.append(ε_t[:-170])
     all_σ_t.append(σ_t[:-170])
+    all_ε_e.append(ε_e[:-170])
+    all_σ_e.append(σ_e[:-170])
 
     # Calculate True Young's modulus (gradient) for the current experiment
     σ_t_initial = σ_t[100:300] / 1e6  # In MPa
@@ -97,7 +101,22 @@ for i in range(n):  # Loop through all n experiments
 
 # Plotting only True Stress-Strain curves
 plt.figure(figsize=(16, 8))
+for i in range(n):
+    plt.plot(all_ε_e[i], all_σ_e[i] / 1e6, label=f"Test {i+1}")
 
+plt.xlabel('Engineering Strain')
+plt.ylabel('Engineering Stress (MPa)')
+plt.title('Engineering Stress-Strain Curves - INSTRON')
+plt.ylim(0, 400)
+plt.grid(True)
+plt.legend()
+plt.tight_layout()
+#plt.savefig("Engineering Stress-Strain Curves.png")
+plt.show()
+
+
+
+plt.figure(figsize=(16, 8))
 for i in range(n):  # Loop through all n experiments
     plt.plot(all_ε_t[i], all_σ_t[i] / 1e6, label=f"Test {i+1}")
 
@@ -112,19 +131,19 @@ plt.savefig("True Stress-Strain Curves.png")
 plt.show()
 
 # Convert lists to numpy arrays for easier processing (if not already)
-all_ε_t_arr = [np.array(arr) for arr in all_ε_t]
-all_σ_t_arr = [np.array(arr) for arr in all_σ_t]
+all_ε_e_arr = [np.array(arr) for arr in all_ε_e]
+all_σ_e_arr = [np.array(arr) for arr in all_σ_e]
 # Define the number of points for the common strain grid
 num_points = 1000
 
 # Step 1: Define the union of strain ranges
-union_strain_min = min(np.min(arr) for arr in all_ε_t_arr)
-union_strain_max = max(np.max(arr) for arr in all_ε_t_arr)
+union_strain_min = min(np.min(arr) for arr in all_ε_e_arr)
+union_strain_max = max(np.max(arr) for arr in all_ε_e_arr)
 common_strain = np.linspace(union_strain_min, union_strain_max, num_points)
 
 # Step 2: Interpolate stress data from each experiment onto the common strain grid
 stress_interp = []
-for strain, stress in zip(all_ε_t_arr, all_σ_t_arr):
+for strain, stress in zip(all_ε_e_arr, all_σ_e_arr):
     f_interp = interp1d(strain, stress, bounds_error=False, fill_value=np.nan)
     stress_interp.append(f_interp(common_strain))
 stress_interp = np.array(stress_interp)
@@ -149,7 +168,7 @@ df = n_experiments - 1
 t_val = t.ppf(1 - 0.025, df)
 ci = t_val * se_stress
 
-avg_max_strain = np.mean([np.max(arr) for arr in all_ε_t_arr])
+avg_max_strain = np.mean([np.max(arr) for arr in all_ε_e_arr])
 print(f"Average maximum strain across experiments: {avg_max_strain}")
 
 # Filter the common strain grid further based on the average maximum strain
@@ -165,20 +184,20 @@ plt.fill_between(common_strain_final,
                  (mean_stress_final - ci_final) / 1e6,
                  (mean_stress_final + ci_final) / 1e6,
                  color='blue', alpha=0.3, label='95% CI')
-plt.xlabel('True Strain')
-plt.ylabel('True Stress (MPa)')
-plt.title('Average True Stress-Strain Curve')
+plt.xlabel('Engineering Strain')
+plt.ylabel('Engineering Stress (MPa)')
+plt.title('Average Engineering Stress-Strain Curve')
 plt.grid(True)
 plt.legend()
 plt.tight_layout()
-plt.savefig("Average True Stress-Strain Curve.png")
+plt.savefig("Average Engineering Stress-Strain Curve.png")
 plt.show()
 
 df_points_avg = pd.DataFrame({
 "strain": common_strain_final,
 "stress (MPa)": mean_stress_final / 1e6
 })
-df_points_avg.to_csv("Average_UTT.csv", index=False)
+df_points_avg.to_csv("Average_UTT_Engineering.csv", index=False)
 
 def calculate_yield_strength_and_points(common_strain_final, mean_stress_final, n):
     

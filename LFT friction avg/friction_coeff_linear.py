@@ -1,8 +1,19 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib import font_manager as fm
+import matplotlib.gridspec as gridspec
 
-plt.rcParams["font.family"] = "Times New Roman"
+
+
+font_path = r"C:\Users\USER\Desktop\Uni Files\Y4\gip-ddest\computer-modern\cmunrm.ttf"
+fm.fontManager.addfont(font_path)
+
+cm_font = fm.FontProperties(fname=font_path)
+font_name = cm_font.get_name()
+
+plt.rcParams['font.family'] = font_name
+
 
 # ────────────────────────────────────────────────────────────────────────────────
 # 1) TEST SET CONFIG + INTERPOLATED ARRAYS
@@ -62,11 +73,11 @@ LFT_DRY_coeffs  = []
 LFT_SG_coeffs   = []
 
 representative_tests = {
-    "2L": 5,
-    "2LR": 3,
-    "PTFE": 3,
+    "2L": 4,
+    "2LR": 2,
+    "PTFE": 2,
     "DRY": 5,
-    "SG": 4
+    "SG": 2
 }
 
 representative_friction_ratios = {}
@@ -87,6 +98,7 @@ def compute_coefficients(test_name: str, base_path: str, coeff_list: list):
     # Lists to hold arrays for plotting after processing all 5 tests
     all_load_series = []
     all_interpolations = []
+    all_ratios = [] 
     rep_index = representative_tests[test_name] - 1  # zero-based
     # 1) Loop through all 5 tests, read their CSV, compute friction
     for i in range(5):
@@ -115,21 +127,30 @@ def compute_coefficients(test_name: str, base_path: str, coeff_list: list):
         # Store data for plotting after the loop
         all_load_series.append(load_series)
         all_interpolations.append(interpolation)
+        all_ratios.append(ratio)
 
-    # 2) Plot all 5 tests in one figure with dual y-axes
+    if len(all_ratios) == 5:
+        # Combine into a single DataFrame: shape (4800, 5)
+        ratio_df = pd.DataFrame(
+            np.column_stack(all_ratios),
+            columns=[f"Test_{i+1}" for i in range(5)]
+        )
+        output_filename = f"{test_name}_ratio_array.csv"
+        ratio_df.to_csv(output_filename, index=False)
+        print(f"Saved ratio arrays to CSV: {output_filename}")
     #    (Left y-axis for load_series, right y-axis for interpolation)
     if len(all_load_series) == 5:  # Only plot if we actually got 5 tests
         time = np.arange(4800) / 10.0  # index / 10 => seconds
 
-        fig, ax1 = plt.subplots(figsize=(18, 6))
+        #fig, ax1 = plt.subplots(figsize=(18, 6))
 
         # Plot all load_series on left y-axis
-        for i, load_arr in enumerate(all_load_series, start=1):
-            ax1.plot(time, load_arr, label=f"Test {i}")
+        #for i, load_arr in enumerate(all_load_series, start=1):
+            #ax1.plot(time, load_arr, label=f"Test {i}")
 
-        ax1.set_xlabel("Time (s)")
-        ax1.set_ylabel("Normal Force (N)")
-        ax1.grid(True)
+        #ax1.set_xlabel("Time (s)")
+        #ax1.set_ylabel("Normal Force (N)")
+        #ax1.grid(True)
 
         # Plot all interpolations on right y-axis
         # ax2 = ax1.twinx()
@@ -139,14 +160,14 @@ def compute_coefficients(test_name: str, base_path: str, coeff_list: list):
         # ax2.set_ylabel("Interpolation (N)")
 
         # Combine legends from both axes into one
-        lines1, labels1 = ax1.get_legend_handles_labels()
+        #lines1, labels1 = ax1.get_legend_handles_labels()
         #lines2, labels2 = ax2.get_legend_handles_labels()
         #ax2.legend(lines1 + lines2, labels1 + labels2, loc="upper right")
-        ax1.legend(loc="upper right")
+        #ax1.legend(loc="upper right")
 
-        plt.tight_layout()
-        plt.savefig(f"{test_name}_load_series.png", dpi=300)
-        plt.show()
+        #plt.tight_layout()
+        #plt.savefig(f"{test_name}_load_series.png", dpi=300)
+        #plt.show()
 
 
 
@@ -195,15 +216,43 @@ print(f"Standard Deviation 2LR Coefficient: {np.std(LFT_2LR_coeffs):.4f}")
 # If you want all representative friction ratio series on one figure:
 time = np.arange(4800) / 10.0  # 4800 points, each at 0.1s
 
-plt.figure(figsize=(18, 6))
+fig = plt.figure(figsize=(22, 8), constrained_layout=True)
+gs = gridspec.GridSpec(1, 2, width_ratios=[2, 1])  # Left subplot is 2x as wide
+
+ax0 = fig.add_subplot(gs[0])  # Wider left subplot
+ax1 = fig.add_subplot(gs[1]) 
 
 for t_name, ratio_array in representative_friction_ratios.items():
-    plt.plot(time, ratio_array, label=f"{t_name}")
+    ax0.plot(time, ratio_array, label=f"{t_name}")
 
-plt.xlabel("Time (s)")
-plt.ylabel("Interfacial Friction Ratio (N)")
-plt.grid(True)
-plt.legend(loc="upper left")
+#ax[0].set_title("Time Series of Interfacial Friction Ratio")
+ax0.tick_params(axis='both', labelsize=16)  # x and y ticks
+ax0.set_xlabel("Time (s)", fontsize=22)
+ax0.set_ylabel("Interfacial Friction Ratio (N)", fontsize=22)
+ax0.grid(True)
+ax0.legend(loc="upper left", fontsize=1)
+
+data_values = list(representative_friction_ratios.values())
+labels = list(representative_friction_ratios.keys())
+
+boxplot = ax1.boxplot(
+    data_values,
+    patch_artist=True,
+    showfliers=True,
+    widths=0.25,
+    whiskerprops=dict(visible=True),
+    capprops=dict(visible=True), 
+    boxprops=dict(facecolor='black', linewidth=0),
+    medianprops=dict(color='black', linewidth=2)
+)
+
+#ax[1].set_title("Friction Ratio Box Plot")
+ax1.set_xticklabels(labels, fontsize=22)
+ax1.tick_params(axis='y', labelsize=16)
+ax1.set_ylabel("Interfacial Friction Ratio (N)", fontsize=22)
+ax1.grid(True)
+
+# Layout and save
 plt.tight_layout()
 plt.savefig("representative_friction_ratios.png", dpi=300)
 plt.show()
