@@ -97,9 +97,9 @@ def fft_plot_df(df, sampling_rate=10.0, log_scale=False, freq_limit=None, detren
     all_amps = []
 
     # First figure: overlayed FFTs
-    """
+
     plt.figure(figsize=(10, 6))
-    """
+
 
     for col in df.columns:
         signal = np.asarray(df[col].dropna())  # ensure no NaNs
@@ -118,7 +118,7 @@ def fft_plot_df(df, sampling_rate=10.0, log_scale=False, freq_limit=None, detren
         pos_mask = fft_freqs > 0
         fft_vals = fft_vals[pos_mask]
         fft_freqs = fft_freqs[pos_mask]
-
+    
         # Convert to amplitude
         amplitude = 2.0 / n * np.abs(fft_vals)
 
@@ -129,28 +129,27 @@ def fft_plot_df(df, sampling_rate=10.0, log_scale=False, freq_limit=None, detren
             amplitude = amplitude[freq_mask]
 
         # Plot on the overlay figure
-        """
         plt.plot(fft_freqs, amplitude, label=col, lw=1.5)
-        """
+
 
         # Save for aggregation
         all_freqs.append(fft_freqs)
         all_amps.append(amplitude)
 
     # Formatting for the overlay figure
-    """
+
     plt.xlabel("Frequency [Hz]", fontsize=12)
     plt.ylabel("Amplitude" + (" [log scale]" if log_scale else ""), fontsize=12)
     plt.title(f"FFT Spectra - {name}", fontsize=14)
     if log_scale:
         plt.yscale('log')
-    plt.grid(True, alpha=0.3)
+    #plt.grid(True, alpha=0.3)
     plt.legend()
     plt.tight_layout()
     if freq_limit is not None:
         plt.xlim([0, freq_limit])
     plt.show()
-    """
+
 
 
     # Let's pick the first freq array as reference; you can also find the min freq array length etc.
@@ -170,7 +169,7 @@ def fft_plot_df(df, sampling_rate=10.0, log_scale=False, freq_limit=None, detren
     std_amp = np.std(amp_matrix, axis=0)
 
     # Plot aggregated
-    """
+
     plt.figure(figsize=(10, 6))
     plt.plot(ref_freqs, mean_amp, label='Mean FFT Amplitude', lw=2, color='C0')
     plt.fill_between(ref_freqs, mean_amp - std_amp, mean_amp + std_amp,
@@ -181,19 +180,19 @@ def fft_plot_df(df, sampling_rate=10.0, log_scale=False, freq_limit=None, detren
     plt.title(f"Aggregated FFT - {name}", fontsize=14)
     if log_scale:
         plt.yscale('log')
-    plt.grid(True, alpha=0.3)
+    #plt.grid(True, alpha=0.3)
     plt.legend()
     plt.tight_layout()
     if freq_limit is not None:
         plt.xlim([0, freq_limit])
     plt.show()
-    """
 
     avg_spectra[name] = {
         "frequency": ref_freqs,
         "mean_amplitude": mean_amp,
         "std_amplitude": std_amp
     }
+
 
 for name, test in test_type.items():
     fft_plot_df(
@@ -205,6 +204,7 @@ for name, test in test_type.items():
         name = name
     )
 
+
 # Choose the subplot you want to use — for example, the first one (top-left)
 filtered_keys = [key for key in avg_spectra if key != "SG"]
 
@@ -215,20 +215,20 @@ axs = axs.flatten()  # Flatten to make indexing easier
 # Plot each key in a separate subplot
 for i, key in enumerate(filtered_keys[:4]):  # Only take up to 4 keys
     data = avg_spectra[key]
-    freq = data["frequency"]
-    mean_amp = data["mean_amplitude"]
-    std_amp = data["std_amplitude"]
+    freq = data["frequency"] 
+    mean_amp = data["mean_amplitude"]* 10e3
+    std_amp = data["std_amplitude"] * 10e3
 
 
     ax = axs[i]
     ax.plot(freq, mean_amp, label=f'{key}',color = "black")
     ax.fill_between(freq, mean_amp - std_amp, mean_amp + std_amp, alpha=0.4,color = "black")
     
-    ax.set_xlabel("Frequency (Hz)",fontsize=24)
-    ax.set_ylim( -0.0001, None)
-    ax.tick_params(axis='both', labelsize=16)
-    ax.set_ylabel("Mean Amplitude (N)",fontsize=24)
-    ax.set_title(f"{key}",fontsize=26)
+    ax.set_xlabel("Frequency (Hz)",fontsize=30)
+    ax.set_ylim( -0.1, 15)
+    ax.tick_params(axis='both', labelsize=24)
+    ax.set_ylabel("Mean Amplitude (mN)",fontsize=28)
+    ax.set_title(f"{key}",fontsize=32)
     ax.grid(True, alpha=0.3)
     #ax.legend()
 
@@ -237,7 +237,7 @@ for i, key in enumerate(filtered_keys[:4]):  # Only take up to 4 keys
 for j in range(len(filtered_keys), 4):
     fig.delaxes(axs[j])
 
-plt.subplots_adjust(wspace=0.3)  # increase space between subplots
+plt.subplots_adjust(wspace=0.3)
 plt.tight_layout()
 plt.savefig(r"fft_plots.png")
 plt.show()
@@ -390,7 +390,7 @@ def plot_wavelet_scalogram(coeffs, freqs, sampling_rate=10.0, cmap='viridis', ti
     plt.xlabel("Time [s]", fontsize=12)
     plt.ylabel("Frequency [Hz]", fontsize=12)
     plt.title(title, fontsize=14)
-    plt.grid(True, alpha=0.3)
+    #plt.grid(True, alpha=0.3)
     plt.tight_layout()
     plt.show()
 
@@ -405,6 +405,15 @@ for name,test in test_type.items():
     print(f"Wavelet Features for {name}:")
     print(results_df)
     print(agg_stats)
+
+for name,test in test_type.items():
+    plot_wavelet_scalogram(
+        results_df['coeffs'].values[0],
+        results_df['freqs_hz'].values[0],
+        sampling_rate=10.0,
+        cmap='viridis',
+        title=f"Wavelet Scalogram for {name}"
+    )
 
 def get_dominant_amplitude_over_time(coeffs):
     """

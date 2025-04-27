@@ -451,12 +451,13 @@ else:
         df_ = dfs[test_i]
         ax_eng.plot(df_["Engineering Strain"], df_["Engineering Stress"], label=f"Test {test_i}",linewidth = 2)
 
-    ax_eng.set_xlabel("Engineering Strain",fontsize = 28)
-    ax_eng.set_ylabel("Engineering Stress (MPa)",fontsize = 28)
+    ax_eng.set_xlabel("Engineering Strain",fontsize = 36)
+    ax_eng.set_ylabel("Engineering Stress (MPa)",fontsize = 36)
     #ax_eng.set_title(f"Engineering Stress-Strain Curve - {formatted_test_name}")
-    ax_eng.tick_params(axis='both', labelsize=22)
+    ax_eng.tick_params(axis='both', labelsize=30)
     ax_eng.grid(True)
-    ax_eng.legend(fontsize = 24)
+    ax_eng.legend(fontsize = 30)
+    ax_eng.set_ylim(0,400)
 
     plt.tight_layout()
     plt.savefig(f"{test_type}_engineering_stress_strain.png")
@@ -470,27 +471,29 @@ else:
         df_ = dfs[test_i]
         ax_true.plot(df_["True Strain"], df_["True Stress"], label=f"Test {test_i}",linewidth = 2)
 
-    ax_true.set_xlabel("True Strain",fontsize = 28)
-    ax_true.set_ylabel("True Stress (MPa)",fontsize = 28)
+    ax_true.set_xlabel("True Strain",fontsize = 34)
+    ax_true.set_ylabel("True Stress (MPa)",fontsize = 34)
     #ax_true.set_title(f"True Stress-Strain Curve - {formatted_test_name}")
-    ax_true.tick_params(axis='both', labelsize=22)
+    ax_true.tick_params(axis='both', labelsize=26)
     ax_true.grid(True)
-    ax_true.legend(fontsize = 24)
+    ax_true.legend(fontsize = 30)
 
     plt.tight_layout()
     plt.savefig(f"{test_type}_true_stress_strain.png")
     plt.show()
 
-    plt.figure( figsize=(12, 6))
+    plt.figure( figsize=(15, 10))
     for test_i in sorted(dfs.keys()):
         df_ = dfs[test_i]
         plt.plot(df_["Engineering Strain"], df_["Friction Adjusted Engineering Stress"], label=f"Test {test_i}")
 
-    plt.xlabel("Engineering Strain",fontsize = 28)
-    plt.ylabel("Friction Adjusted Engineering Stress (MPa)",fontsize = 28)
+    plt.xlabel("Engineering Strain",fontsize = 34)
+    plt.ylim(0,400)
+    plt.tick_params(axis='both', labelsize=28)
+    plt.ylabel("Friction Adjusted Engineering Stress (MPa)",fontsize = 34)
     #plt.title(f"Friction Adjusted Engineering Stress-Strain Curve - {formatted_test_name}")
     plt.grid(True)
-    plt.legend(fontsize = 24)
+    plt.legend(fontsize = 30)
     plt.tight_layout()
     plt.savefig(f"{test_type}_adj_stress_strain_curves.png")
     plt.show()

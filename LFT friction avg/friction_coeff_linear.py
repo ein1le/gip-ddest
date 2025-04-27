@@ -214,28 +214,36 @@ print(f"Standard Deviation 2LR Coefficient: {np.std(LFT_2LR_coeffs):.4f}")
 
 # ────────────────────────────────────────────────────────────────────────────────
 # If you want all representative friction ratio series on one figure:
+# Create time array
 time = np.arange(4800) / 10.0  # 4800 points, each at 0.1s
 
-fig = plt.figure(figsize=(22, 8), constrained_layout=True)
-gs = gridspec.GridSpec(1, 2, width_ratios=[2, 1])  # Left subplot is 2x as wide
+# Create a new figure for time series
+fig, ax = plt.subplots(figsize=(18, 8))
 
-ax0 = fig.add_subplot(gs[0])  # Wider left subplot
-ax1 = fig.add_subplot(gs[1]) 
-
+# Plot each friction ratio series
 for t_name, ratio_array in representative_friction_ratios.items():
-    ax0.plot(time, ratio_array, label=f"{t_name}")
+    ax.plot(time, ratio_array, label=f"{t_name}")
 
-#ax[0].set_title("Time Series of Interfacial Friction Ratio")
-ax0.tick_params(axis='both', labelsize=16)  # x and y ticks
-ax0.set_xlabel("Time (s)", fontsize=22)
-ax0.set_ylabel("Interfacial Friction Ratio (N)", fontsize=22)
-ax0.grid(True)
-ax0.legend(loc="upper left", fontsize=1)
+ax.tick_params(axis='both', labelsize=32)
+ax.set_xlabel("Time (s)", fontsize=40)
+ax.set_ylabel("Interfacial Friction Ratio (N)", fontsize=38)
+ax.grid(True)
+ax.legend(loc="upper left", fontsize=26)
 
+# Save and show
+plt.tight_layout()
+plt.savefig("friction_ratio_timeseries.png", dpi=300)
+plt.show()
+
+# Create new figure for boxplot
+fig, ax = plt.subplots(figsize=(10, 8))
+
+# Prepare data
 data_values = list(representative_friction_ratios.values())
 labels = list(representative_friction_ratios.keys())
 
-boxplot = ax1.boxplot(
+# Create boxplot
+boxplot = ax.boxplot(
     data_values,
     patch_artist=True,
     showfliers=True,
@@ -246,13 +254,12 @@ boxplot = ax1.boxplot(
     medianprops=dict(color='black', linewidth=2)
 )
 
-#ax[1].set_title("Friction Ratio Box Plot")
-ax1.set_xticklabels(labels, fontsize=22)
-ax1.tick_params(axis='y', labelsize=16)
-ax1.set_ylabel("Interfacial Friction Ratio (N)", fontsize=22)
-ax1.grid(True)
+ax.set_xticklabels(labels, fontsize=36)
+ax.tick_params(axis='y', labelsize=28)
+ax.set_ylabel("Interfacial Friction Ratio (N)", fontsize=36)
+ax.grid(True)
 
-# Layout and save
+# Save and show
 plt.tight_layout()
-plt.savefig("representative_friction_ratios.png", dpi=300)
+plt.savefig("friction_ratio_boxplot.png", dpi=300)
 plt.show()

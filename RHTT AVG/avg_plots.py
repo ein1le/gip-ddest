@@ -30,11 +30,12 @@ ax1.plot(RHTT_S_LUB_eng["Engineering Strain"], RHTT_S_LUB_eng["Engineering Stres
 ax1.plot(UTT_eng["strain"], UTT_eng["stress (MPa)"], label="Uniaxial Tension Test")
 # ax1.fill_between(truncated_common_strain, truncated_lower_bound, truncated_upper_bound, alpha=0.3, label="± 1 Std Dev")
 
-ax1.set_xlabel("Average Engineering Strain",fontsize = 28)
-ax1.set_ylabel("Average Engineering Stress (MPa)",fontsize = 28)
-ax1.tick_params(axis='both', labelsize=22)
+ax1.set_xlabel("Average Engineering Strain",fontsize = 34)
+ax1.set_ylabel("Average Engineering Stress (MPa)",fontsize = 34)
+ax1.tick_params(axis='both', labelsize=30)
 #ax1.set_title("Average Engineering Stress-Strain")
-ax1.legend(fontsize = 24)
+ax1.set_ylim(0,400)
+ax1.legend(fontsize = 30)
 ax1.grid(True)
 
 plt.tight_layout()
@@ -59,13 +60,16 @@ ax2.plot(RHTT_S_DRY_eng["Engineering Strain"], RHTT_S_DRY_eng["Engineering Stres
 ax2.plot(RHTT_S_LUB_eng["Engineering Strain"], RHTT_S_LUB_eng["Engineering Stress (MPa)"] * adjust_lub, label="Large Clearance, Low Friction",linewidth=2)
 ax2.plot(UTT_eng["strain"], UTT_eng["stress (MPa)"], label="Uniaxial Tension Test")
 
-ax2.set_xlabel("Average Engineering Strain",fontsize = 28)
-ax2.tick_params(axis='both', labelsize=22)
-ax2.set_ylabel("Capstan Adjusted Stress (MPa)",fontsize = 28)
+ax2.set_xlabel("Average Engineering Strain",fontsize = 34)
+ax2.tick_params(axis='both', labelsize=30)
+ax2.set_ylabel("Capstan Adjusted Stress (MPa)",fontsize = 34)
+ax2.set_ylim(0, 400)
 #ax2.set_title("Friction Adjusted Average Engineering Stress-Strain")
-ax2.legend(fontsize = 24)
+ax2.legend(fontsize = 30)
 ax2.grid(True)
 
 plt.tight_layout()
 plt.savefig("FRICTION_ADJUSTED_stress_strain.png", dpi=300)
 plt.show()
+
+
